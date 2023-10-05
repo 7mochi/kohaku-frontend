@@ -19,30 +19,35 @@
             Bienvenido a osu!Peru
           </h2>
 
+          <template v-if="error">
+            <p class="mt-6 text-lg leading-8 text-gray-300">
+              Ha ocurrido un error en la verificacion, genera otro link en el discord e intentalo nuevamente
+            </p>
+          </template>
           <template v-if="loading">
             <p class="mt-6 text-lg leading-8 text-gray-300">
               Cargando
             </p>
           </template>
           <template v-else>
-            <template v-if="!user.verified">
+            <template v-if="!user.verified && !error">
               <p class="mt-6 text-lg leading-8 text-gray-300">
                 Para verificarte y tener acceso completo al servidor de discord
                 verificate aquí.
               </p>
             </template>
-            <template v-else>
+            <template v-else-if="user.verified && !error">
               <p class="mt-6 text-lg leading-8 text-gray-300">
                 Te has verificado como {{ user.osu_username }} ({{ user.discord_username }})
               </p>
             </template>
             <div class="mt-10 flex items-center justify-center gap-x-6 lg:justify-start">
-              <template v-if="!user.verified">
+              <template v-if="!user.verified && !error">
                 <a href="#"
                   class="rounded-md bg-white px-3.5 py-2.5 text-sm font-semibold text-gray-900 shadow-sm hover:bg-gray-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
                   @click="handleAuth">Verificarse</a>
               </template>
-              <template v-else>
+              <template v-else-if="user.verified && !error">
                 <a href="#"
                   class="rounded-md bg-white px-3.5 py-2.5 text-sm font-semibold text-gray-900 shadow-sm hover:bg-gray-100 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
                   @click="handleDeauth">Eliminar verificacion</a>
@@ -89,6 +94,7 @@ export default {
     return {
       user: <IUser>{},
       loading: true,
+      error: false,
     }
   },
   created(): void {
@@ -106,7 +112,7 @@ export default {
           client_id: import.meta.env.VITE_OSU_CLIENT_ID,
           redirect_uri: import.meta.env.VITE_OSU_REDIRECT_URI,
           response_type: "code",
-          scope: "identify",
+          scope: "public",
           state: this.$route.query.kohaku_code,
         };
 
@@ -155,14 +161,19 @@ export default {
           osu_code: code,
         }
 
-        const result: AxiosResponse<IUser> = await axios.post(
-          `${import.meta.env.VITE_BACKEND_API_URL}/api/auth`, parameters, {
-          withCredentials: true,
-        });
+        try {
+          const result: AxiosResponse<IUser> = await axios.post(
+            `${import.meta.env.VITE_BACKEND_API_URL}/api/auth`, parameters, {
+            withCredentials: true,
+          });
 
-        if (result.status !== 403) {
-          this.user = result.data;
-          this.loading = false;
+          if (result.status !== 403) {
+            this.user = result.data;
+            this.loading = false;
+          }
+        } catch (error) {
+          this.loading = false
+          this.error = true
         }
       } else {
         this.loading = false;
